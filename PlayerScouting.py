@@ -136,6 +136,7 @@ FORMATIONS = {
     },
 }
 
+# RUle- Based (POSITION_TIER)
 POSITION_RULE = {
     "Goalkeeper": ["Goalkeeper"],
 
@@ -234,16 +235,13 @@ def get_ai_scout_report(p_lama, p_baru):
     """
     
     try:
-        # 3. Proses pengiriman prompt ke server Google dan menunggu balasan (response)
         response = llm_model.generate_content(prompt)
         
-        # 4. Mengekstrak teks dari keseluruhan data balasan
         hasil_teks = response.text
         
         return hasil_teks
         
     except Exception as e:
-        # Jaga-jaga kalau internet putus atau API error
         return f"Mohon maaf, AI Scout sedang tidak bisa dihubungi saat ini. Detail error: {str(e)}"
 
 st.markdown(page_by_img, unsafe_allow_html=True)
@@ -270,8 +268,7 @@ with tab_squad:
             st.session_state.sel_slot = None
             st.rerun()
     
-    # ── Search results ────────────────────────────────────────────────────────
-    # Cek apakah search_q ada isinya (tidak None)
+    # Search results
     if search_q:
         found = df_clean[df_clean["fullName"].str.contains(search_q, case=False, na=False)]
         
@@ -314,7 +311,7 @@ with tab_squad:
             st.warning("Pemain tidak ditemukan.")
             st.markdown("---")
 
-    # ── Pitch ─────────────────────────────────────────────────────────────────
+    # Pitch
     formation_data = FORMATIONS[st.session_state.formation]
     slot_ids       = get_slot(st.session_state.formation)
     squad          = st.session_state.squad
@@ -333,7 +330,6 @@ with tab_squad:
             row_slot_ids = slot_ids[slot_cursor: slot_cursor + n]
             slot_cursor += n
 
-            # Menambahkan kolom padding agar baris pemain berada di tengah
             pad = (6 - n) // 2
             all_cols = st.columns([0.5]*pad + [0.5]*n + [0.5]*pad) if pad > 0 else st.columns(n)
             player_cols = all_cols[pad:pad+n] if pad > 0 else all_cols
@@ -359,7 +355,6 @@ with tab_squad:
                             st.session_state.sel_slot = None if is_selected else sid
                             st.rerun()  
                     else:
-                        # Slot kosong di lapangan
                         st.markdown(
                             f'<div style="text-align:center;padding:8px">'
                             f'  <div style="width:80px;height:80px;border:2px dashed #715413;border-radius:8px;'
@@ -454,7 +449,7 @@ with tab_squad:
 
     st.markdown("---")
 
-    # ── Rekomendasi Pengganti ─────────────────────────────────────────────────
+    # Rekomendasi Pemain Pengganti
     if st.session_state.sel_slot:
         sid = st.session_state.sel_slot
         p   = squad.get(sid)
@@ -470,14 +465,12 @@ with tab_squad:
             recs = get_recommendations(p["name"], top_n=20)
             if recs is not None:
                 
-                # ── JIKA ADA KANDIDAT YANG SEDANG DIBANDINGKAN ──
                 if st.session_state.compare_candidate is not None:
                     candidate = st.session_state.compare_candidate
                     
                     st.markdown("### ⚖️ Perbandingan Pemain")
                     st.markdown("---")
                     
-                    # Layout 3 Kolom: [Pemain Lama] [Info/Statistik] [Kandidat Baru]
                     c1, c2, c3 = st.columns([1, 1.5, 1], gap="medium")
                     
                     with c1:
@@ -496,24 +489,21 @@ with tab_squad:
                         st.markdown("<br>", unsafe_allow_html=True)
                         st.markdown(f"<div style='text-align:center;'><b>Posisi:</b><br>{p['position']} ➔ {candidate.get('position_name','-')}</div>", unsafe_allow_html=True)
                         
-                        # ── BAGIAN AI SCOUT REPORT ──
+                        # Gemini
                         st.markdown("<div style='text-align:center; color:#d1cb5c; font-size:1rem; margin-top:20px;'><b>Pendapat LLM: Gemini</b></div>", unsafe_allow_html=True)
                         
-                        # Cek apakah insight sudah ada di memori, jika belum, panggil LLM
                         if st.session_state.llm_insight is None:
                             with st.spinner("Scout sedang menganalisis kecocokan pemain..."):
                                 st.session_state.llm_insight = get_ai_scout_report(p, candidate)
                         
-                        # Tampilkan hasil analisis LLM dalam kotak keren
                         st.markdown(
                             f"<div style='background:rgba(0, 0, 0, 0.4); padding:12px; border-radius:8px; font-size:1rem; text-align:center; margin-bottom:15px; color:#e8f0e8; border: 1px solid rgba(209, 203, 92, 0.3);'>"
                             f"<i>{st.session_state.llm_insight}</i>"
                             f"</div>", 
                             unsafe_allow_html=True
                         )
-                        # ─────────────────────────────
 
-                        # Tombol Aksi
+                        # Tombol Oke atau Nggak
                         btn_col1, btn_col2 = st.columns(2)
                         with btn_col1:
                             if st.button("✅ Konfirmasi", use_container_width=True):
@@ -528,7 +518,6 @@ with tab_squad:
                                 st.session_state.llm_insight = None # Bersihkan lagi
                                 st.rerun()
                     
-                # ── JIKA BELUM ADA YANG DIBANDINGKAN (TAMPILKAN LIST PEMAIN) ──
                 else:
                     for row_start in range(0, 20, 10):
                         rec_cols = st.columns(10)
@@ -547,7 +536,6 @@ with tab_squad:
                                 st.markdown(f"<div class='rec-name' style='font-weight:bold; font-size:0.8rem;'>{rec['fullName']}</div>", unsafe_allow_html=True)
                                 st.markdown(f"<div class='rec-meta' style='font-size:0.7rem; color:#ccc;'>{rec.get('position_name','-')}<br>{rec.get('team_name','-')}</div>", unsafe_allow_html=True)
                                 
-                                # Tombol ini sekarang fungsinya memicu layar perbandingan, bukan langsung menukar
                                 if st.button("Bandingkan", key=f"pick_rec_{ri}_{sid}", use_container_width=True):
                                     st.session_state.compare_candidate = rec
                                     st.session_state.llm_insight = None
